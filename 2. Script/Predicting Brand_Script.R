@@ -1,53 +1,37 @@
-install.packages('caret', dependencies = TRUE)
-install.packages("readr")
-install.packages("stringi")
-install.packages("plyr")
-install.packages("ggplot2")
-install.packages("tidyselect")
-install.packages("pacman")
-
 library(devtools)
-library(readr)
+library(tidyverse)
 library(plyr)
+library(readr)
 library(stringi)
 library(lattice)
 library(ggplot2)
 library(caret)
-library(pacman)
-library(plyr)
-
-###############################################################################################################################
-remove.packages('rpart.plot')
-remove.packages('rpart')
-remove.packages('rattle')
-remove.packages('RColorBrewer')
-
-install.packages('rattle')
-install.packages('rpart')
-install.packages('rpart.plot')
-install.packages('RColorBrewer')
-
 library(rpart)
-library(rattle)
 library(rpart.plot)
 library(RColorBrewer)
-########################### SE IMPORTA LA DATA DESDE EXCEL - SELECCIONANDO EL SHEET CORRESPONDIENTE ###########################
-
 library(readxl)
-surveydata <- read_excel("C:\\Users\\Javier Villasmil\\Desktop\\Ubiqum\\Task 05 - Classification Brand Prediction\\Survey_Key_and_Complete_Responses_excel.xlsx",sheet = "Survey Results Complete")
+library(cowplot)
+library(doParallel)
+
+#import survey data
+surveydata <- read_excel("C:\\Users\\Javier Villasmil\\Desktop\\Ubiqum\\Repositories\\Classification - Brand Prediction\\1. Dataset\\Survey_Key_and_Complete_Responses_excel.xlsx",sheet = "Survey Results Complete")
 
 View(surveydata)
 str(surveydata)
+summary(surveydata)
 head(surveydata)
 
-########################### SE REEMPLANZAN LOS VALORES DE LA VARIABLE "BRAND" NUMERICOS POR LA MARCA CORRESPONDIENTE, LUEGO SE CAMBIA LA VARIABLE A FACTOR DE DOS NIVELES ###########################
+########################################################### PRE-PROCESS ###############################################################
+
+#Change "brand" variable type to factor
 surveydata$brand <- replace(surveydata$brand, surveydata$brand == '0', "acer")
 surveydata$brand <- replace(surveydata$brand, surveydata$brand == '1', "sony")
 surveydata$brand <- as.factor(surveydata$brand)
 
-summary(surveydata$brand)
-str(surveydata$brand)
-########################## SE CAMBIA LA VARIABLE "ZIPCODE" FACTOR Y SE RE-ASIGNAN LOS NIVELES SIGUIENDO LA KEY SuMINISTRADA ###########################
+summary(surveydata$brand) #check brand count
+str(surveydata$brand) #check brand levels
+
+#Change "zipcode" variable type to factor and rename the levels
 surveydata$zipcode <- as.factor(surveydata$zipcode)
 surveydata$zipcode <- revalue(surveydata$zipcode, c("0" = "New England", 
                                                    "1" = "Mid-Atlantic", 
@@ -59,223 +43,184 @@ surveydata$zipcode <- revalue(surveydata$zipcode, c("0" = "New England",
                                                    "7" = "Mountain",
                                                    "8" = "Pacific"))
 
-summary(surveydata$zipcode)
+summary(surveydata$zipcode) #check zipcode levels
 
-########################## SE CAMBIA LA VARIABLE "ELEVEL" A FACTOR Y SE RE-ASIGNAN LOS NIVELES SIGUIENDO LA KEY SuMINISTRADA ###########################
+#Change "education level" variable type to factor and rename the levels
 surveydata$elevel <- as.factor(surveydata$elevel)
 surveydata$elevel <- revalue(surveydata$elevel,c(  "0" = "Less than High School", 
                                                    "1" = "High School Degree", 
                                                    "2" = "Some College", 
                                                    "3" = "4-year college degree",
                                                    "4" = "Masters or Doctoral"))
-summary(surveydata$elevel)
+summary(surveydata$elevel) #check elevel levels
 
-########################## SE CAMBIA LA VARIABLE "CAR" A FACTOR - NO SE REASIGNARON VALORES ###########################
+#Change "car" variable type to factor and rename the levels
 surveydata$car <- as.factor(surveydata$car)
 
 summary(surveydata$car)
 
-########################## SE CAMBIA LA VARIABLE "AGE" A INTEGER Y "CREDIT" A NUMERIC - NO SE REASIGNARON VALORES ###########################
+
+#Change "Age" to integer and "credit" to numeric
 surveydata$age <- as.integer(surveydata$age)
 
 surveydata$credit <- as.numeric(surveydata$credit)
 
-summary(surveydata$age)
-summary(surveydata$credit)
+summary(surveydata$age) #check age
+summary(surveydata$credit) #check credit
 
-str(surveydata$age)
-str(surveydata$credit)
 
-##############################################################################################################################################
-########################################################### PLOT RELATIONSHIPS ###############################################################
 
-par(mfrow = c(1,1))
+########################################################### DATA VISUALIZATION ###############################################################
+
+#decision tree to check variable importance
 treeoflife <- rpart( brand ~ . , data = surveydata, method = "class")
 
 printcp(treeoflife) # display the results 
-plotcp(treeoflife) # visualize cross-validation results 
+plotcp(treeoflife)
 summary(treeoflife) # detailed summary of splits
 
+#plor decision tree
 plot(treeoflife, uniform = TRUE, 
      main = "Classification Tree for Brand")
 text(treeoflife, use.n=TRUE, all=TRUE, cex=.8)
 
+#histograms
+h1 <- ggplot(surveydata, aes(x=salary, fill = brand)) + 
+  geom_histogram(color="black")+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
 
+h2 <- ggplot(surveydata, aes(x=age, fill = brand)) + 
+  geom_histogram(color="black")+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
+
+h3 <- ggplot(surveydata, aes(x=credit, fill = brand)) + 
+  geom_histogram(color="black")+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
+
+h4 <- ggplot(surveydata, aes(x=elevel, fill = brand)) + 
+  geom_histogram(binwidth = 0.2, color="black",stat = "count" )+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
+
+h5 <- ggplot(surveydata, aes(x=car, fill = brand)) + 
+  geom_histogram(binwidth = 0.2, color="black",stat = "count" )+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
+
+h6 <- ggplot(surveydata, aes(x=zipcode, fill=brand)) + 
+  geom_histogram(binwidth = 0.2,color="black",stat = "count" )+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
+
+h7 <- ggplot(surveydata, aes(x=brand)) + 
+  geom_histogram(aes(fill=brand),binwidth = 0.2,stat = "count" )+
+  guides(fill=FALSE)+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
+
+plot_grid(h1,h2,h3,h4,h5,h6,h7)
 
 # Color and shape depend on factor (categorical variable)
-ggplot(surveydata, aes(x=age, y=salary, color=brand)) + geom_point(size=4, alpha=0.6)
+p1 <- ggplot(surveydata, aes(x=age, y=salary, color=brand)) + geom_point(size=3)+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
 
-ggplot(surveydata, aes(x=age, y=credit, color=brand)) + geom_point(size=4, alpha=0.6)
+p2 <- ggplot(surveydata, aes(x=age, y=credit, color=brand)) + geom_point(size=3)+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
 
-ggplot(surveydata, aes(x=car, y=salary, color=brand)) + geom_point(size=4, alpha=0.6)
+p3 <- ggplot(surveydata, aes(x=car, y=salary, fill=brand)) + geom_col(size=3)+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
 
-ggplot(surveydata, aes(x=zipcode, y=salary, color=brand)) + geom_point(size=4, alpha=0.6)
+p4 <- ggplot(surveydata, aes(x=zipcode, y=salary, fill=brand)) + geom_col(size=3)+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
 
-ggplot(surveydata, aes(x=elevel, y=salary, color=brand)) + geom_point(size=4, alpha=0.6)
+p5 <- ggplot(surveydata, aes(x=elevel, y=salary, fill=brand)) + geom_col(size=3)+
+  theme(text = element_text(size=10) ,axis.text.x = element_text(size = 5),axis.text.y = element_text(size = 5))
 
+plot_grid(p1,p2,p3,p4,p5)
 
-ggplot(surveydata, aes(x=salary)) + 
-  geom_histogram(color="white", fill=rgb(0.2,0.7,0.1,0.4))
+########################################################### MODELS ###############################################################
 
-ggplot(surveydata, aes(x=age)) + 
-  geom_histogram(color="white", fill=rgb(0.2,0.7,0.1,0.4))
+#random sampling
+set.seed(123) 
 
-ggplot(surveydata, aes(x=credit)) + 
-  geom_histogram(color="white", fill=rgb(0.2,0.7,0.1,0.4))
+#cretes a subset with similar distribution among the variable selected
+trainingindices <- createDataPartition(y = surveydata$brand, p = .75, list = FALSE)
 
-ggplot(surveydata, aes(x=elevel)) + 
-  geom_histogram(binwidth = 0.2, color="white", fill=rgb(0.2,0.7,0.1,0.4),stat = "count" )
-
-ggplot(surveydata, aes(x=car)) + 
-  geom_histogram(binwidth = 0.2, color="white", fill=rgb(0.2,0.7,0.1,0.4),stat = "count" ) 
-
-ggplot(surveydata, aes(x=zipcode)) + 
-  geom_histogram(binwidth = 0.2, color="white", fill=rgb(0.2,0.7,0.1,0.4),stat = "count" )
-
-ggplot(surveydata, aes(x=brand)) + 
-  geom_histogram(binwidth = 0.2, color="white", fill=rgb(0.2,0.7,0.1,0.4),stat = "count" )
-
-######################################### REVISAR FORMULACION - MAKES NO SENSE
-p  <- ggplot(surveydata, aes(salary, colour=car, fill=car))
-p  <- p + geom_density(alpha=0.55)
-p
-
-p  <- ggplot(surveydata, aes(salary, colour=brand, fill=brand))
-p  <- p + geom_density(alpha=0.55)
-p
-
-p  <- ggplot(surveydata, aes(credit, colour=age, fill=brand))
-p  <- p + geom_density(alpha=0.55)
-p
-
-p  <- ggplot(surveydata, aes(elevel, colour=salary, fill=brand))
-p  <- p + geom_density(alpha=0.55)
-p
-##############################################################################################################################################
-##############################################################################################################################################
-
-set.seed(123)
-
-trainingindices <- createDataPartition(
-  y = surveydata$brand,
-  ## the outcome data are needed
-  p = .75,
-  ## The percentage of data in the
-  ## training set
-  list = FALSE
-)
-
+#train subset
 training <- surveydata[trainingindices,]
+
+#test subset
 testing  <- surveydata[-trainingindices,]
 
+# Prepare Parallel Process
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
 
-##############################################################################################################################################
-##############################################################################################################################################
-##############################################################################################################################################
-############################################################## SE GENERA EL MODELO KNN #######################################################
-
-#PARAMETROS DE CONTROL PARA CADA MODELO - E.g, CrossValidation, Accuracy y Kappa
-controlknn <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+#knN Models
+#control parameters for cross-validation
+controlknn <- trainControl(method = "repeatedcv", number = 10, repeats = 3, verboseIter = TRUE)
 
 set.seed(123)
 
-#modelo con todas las variables
-modeloKNNall <- train(
-  brand ~ .,
-  data = training,
-  method = "knn",
-  trControl = controlknn,
-  preProc = c("center", "scale"),
-  tuneLength = 10)
+#kNN with "all variables"
+modeloKNNall <- train(brand ~ .,data = training,method = "knn",trControl = controlknn,preProc = c("center", "scale"),tuneLength = 10)
 
-#modelos con solo salary
-modeloKNNs <- train(
-  brand ~ salary,
-  data = training,
-  method = "knn",
-  trControl = controlknn,
-  preProc = c("center", "scale"),
-  tuneLength = 10)
+#kNN with "salary"
+modeloKNNs <- train(brand ~ salary,data = training,method = "knn",trControl = controlknn,preProc = c("center", "scale"),tuneLength = 10)
 
-#modelos con age y salary 
-modeloKNNsa <- train(
-  brand ~ salary + age,
-  data = training,
-  method = "knn",
-  trControl = controlknn,
-  preProc = c("center", "scale"),
-  tuneLength = 10)
+#kNN with "salary+age"
+modeloKNNsa <- train(brand ~ salary + age,data = training,method = "knn",trControl = controlknn,preProc = c("center", "scale"),tuneLength = 10)
 
-############################################################## VERIFICACION DEL MODELO KNN ###################################################
-
+#models
 modeloKNNall
 modeloKNNs
 modeloKNNsa
 
+#plots
 ggplot(modeloKNNall)
 ggplot(modeloKNNs)
 ggplot(modeloKNNsa)
 
-############################################################## PREDICCION DE VALORES CONTRA EL TEST SET + CONFUSION MATRIX ###################
-
+#predictions agaisnt the test set
 predictionknnall <- predict(modeloKNNall, newdata = testing)
 predictionknns <- predict(modeloKNNs, newdata = testing)
 predictionknnsa <- predict(modeloKNNsa, newdata = testing)
 
-p1 <- confusionMatrix(data = predictionknnall, testing$brand)
-p2 <- confusionMatrix(data = predictionknns, testing$brand)
-p3 <- confusionMatrix(data = predictionknnsa, testing$brand)
+#postResample
+performance_kNN_all <- postResample(predictionknnall,testing$brand)
+performance_kNN_s <- postResample(predictionknns,testing$brand)
+performance_kNN_sa <- postResample(predictionknnsa,testing$brand)
 
-p1
-p2
-p3
+#confusion matrix
+cm1 <- confusionMatrix(data = predictionknnall, testing$brand)
+cm2 <- confusionMatrix(data = predictionknns, testing$brand)
+cm3 <- confusionMatrix(data = predictionknnsa, testing$brand)
 
-asdasdasd <- resamples(list(p1 = modeloKNNall, p2=modeloKNNs, p3=modeloKNNsa))
-summary(asdasdasd)
-diffs <- diff(asdasdasd)
+cm1$table
+cm2$table
+cm3$table
 
-summary(diffs)
 ##############################################################################################################################################
-##############################################################################################################################################
-##############################################################################################################################################
-############################################################## SE GENERA EL MODELO DECISION TREE #############################################
 
-#PARAMETROS DE CONTROL PARA CADA MODELO - E.g, CrossValidation, Accuracy y Kappa
-controltree <- trainControl(method = "repeatedcv", repeats = 3,number = 10)
+#Decision Tree Models
+
+#control parameters for cross-validation
+controltree <- trainControl(method = "repeatedcv", repeats = 3,number = 10,verboseIter = TRUE)
 
 set.seed(123)
-#modelo con todas las variables
-modeloTREEall <- train(
-  brand ~ .,
-  data = training,
-  method = "rpart",
-  trControl = controlknn,
-  preProc = c("center", "scale"),
-  tuneLength = 10)
 
-modeloTREEs <- train(
-  brand ~ salary,
-  data = training,
-  method = "rpart",
-  trControl = controlknn,
-  preProc = c("center", "scale"),
-  tuneLength = 10)
+#dt with "all variables"
+modeloTREEall <- train(brand ~ .,data = training,method = "rpart",trControl = controltree, preProc = c("center", "scale"),tuneLength = 10)
 
-modeloTREEsa <- train(
-  brand ~ salary+age,
-  data = training,
-  method = "rpart",
-  trControl = controlknn,
-  preProc = c("center", "scale"),
-  tuneLength = 10)
+#dt with "salary"
+modeloTREEs <- train(brand ~ salary,data = training,method = "rpart",trControl = controltree,preProc = c("center", "scale"),tuneLength = 10)
+
+#dt with "salary+age"
+modeloTREEsa <- train(brand ~ salary+age,data = training,method = "rpart",trControl = controltree,preProc = c("center", "scale"),tuneLength = 10)
 
 
-############################################################## VERIFICACION DEL MODELO DECISION TREE #############################################
+#models
 modeloTREEall
 modeloTREEs
 modeloTREEsa
 
-
+#plots
 ggplot(modeloTREEall)
 ggplot(modeloTREEs)
 ggplot(modeloTREEsa)
@@ -284,68 +229,26 @@ prp(modeloTREEall$finalModel, box.palette = "Reds", tweak = 1.2)
 prp(modeloTREEs$finalModel, box.palette = "Reds", tweak = 1.2)
 prp(modeloTREEsa$finalModel, box.palette = "Reds", tweak = 1.0)
 
-############################################################## PREDICCION DE VALORES CONTRA EL TEST SET + CONFUSION MATRIX ###################
-
+#predictions agaisnt the test set
 predictiontreeall <- predict(modeloTREEall, newdata = testing)
 predictiontrees <- predict(modeloTREEs, newdata = testing)
 predictiontreesa <- predict(modeloTREEsa, newdata = testing)
 
-confusionMatrix(data = predictiontreeall, testing$brand)
-confusionMatrix(data = predictiontrees, testing$brand)
-confusionMatrix(data = predictiontreesa, testing$brand)
+#postResample
+performance_dt_all <- postResample(predictiontreeall,testing$brand)
+performance_dt_s <- postResample(predictiontrees,testing$brand)
+performance_dt_sa <- postResample(predictiontreesa,testing$brand)
 
+#confusion matrix
+cm4 <- confusionMatrix(data = predictiontreeall, testing$brand)
+cm5 <- confusionMatrix(data = predictiontrees, testing$brand)
+cm6 <- confusionMatrix(data = predictiontreesa, testing$brand)
+
+cm4$table
+cm5$table
+cm6$table
 ##############################################################################################################################################
-##############################################################################################################################################
-##############################################################################################################################################
-##############################################################################################################################################
-##############################################################################################################################################
-##############################################################################################################################################
 
-SurveyIncomplete<-read.csv("C:\\Users\\Javier Villasmil\\Desktop\\Ubiqum\\Task 05 - Classification Brand Prediction\\SurveyIncomplete.csv")
-
-SurveyIncomplete$brand <- replace(SurveyIncomplete$brand, SurveyIncomplete$brand == '0', "acer")
-SurveyIncomplete$brand <- replace(SurveyIncomplete$brand, SurveyIncomplete$brand == '1', "sony")
-SurveyIncomplete$brand <- as.factor(SurveyIncomplete$brand)
-
-SurveyIncomplete$zipcode <- as.factor(SurveyIncomplete$zipcode)
-SurveyIncomplete$zipcode <- revalue(SurveyIncomplete$zipcode,c("0" = "New England", 
-                                                   "1" = "Mid-Atlantic", 
-                                                   "2" = "East North Central", 
-                                                   "3" = "West North Central",
-                                                   "4" = "South Atlantic",
-                                                   "5" = "East South Cental",
-                                                   "6" = "West South Central",
-                                                   "7" = "Mountain",
-                                                   "8" = "Pacific"))
-
-SurveyIncomplete$elevel <- as.factor(SurveyIncomplete$elevel)
-SurveyIncomplete$elevel <- revalue(SurveyIncomplete$elevel,c(  "0" = "Less than High School", 
-                                                   "1" = "High School Degree", 
-                                                   "2" = "Some College", 
-                                                   "3" = "4-year college degree",
-                                                   "4" = "Masters or Doctoral"))
-
-SurveyIncomplete$car <- as.factor(SurveyIncomplete$car)
-
-SurveyIncomplete$age <- as.integer(SurveyIncomplete$age)
-
-SurveyIncomplete$credit <- as.numeric(SurveyIncomplete$credit)
-
-
-PredSurveyIncomplete<-predict(modeloKNNsa, newdata = SurveyIncomplete)
-summary(PredSurveyIncomplete)
-head(SurveyIncomplete)
-
-barplot(summary(PredSurveyIncomplete), col= c(rgb(0.2,0.4,0.6,0.6),"lightgreen"), xlab="Brand", ylab = "Quantity")
-
-?boxplot
-par(mfrow = c(3,3)) 
-for(i in 1:(ncol(surveydata))){
-  boxplot(surveydata[,i])}
-
-  surveydata
-
-  
-#ggplot format plot <- ggplot(dataframe) + aes(x,y - aesthetics) + geom_point() + geom_bar() + geom_line() + scale_x_conitnuos() + ggtitle ("")
-
-#plotly can accept ggplot plots
+#saving best models, Knn / Decisiton Tree with "Salary + Age" as predictors
+save(modeloKNNsa, file = "kNN_salaryage_brand.rda")
+save(modeloTREEsa, file = "rpart_salaryage_brand.rda")
