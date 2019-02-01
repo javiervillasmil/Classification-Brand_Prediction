@@ -1,7 +1,7 @@
 Classification - Brand Prediction
 
 1.	SCOPE
-Analyze using data mining and modeling methods, the dataset supplied by the CTO and head of Blackwell's eCommerce Team – the goal is to predict the preferred computer brand (Sony/Asus) based on a survey realized to users..
+Analyze using data mining and machine learning algorithms, the dataset supplied by the CTO and head of Blackwell's eCommerce Team – the goal is to predict the preferred computer brand (Sony/Asus) based on a survey realized to users..
 This dataset contains general information about possible costumers such as salary, age, education level, type of car, location, credit and preferred computer brand.
 
 2.	OBJECTIVES
